@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'EverPixel',
+      title: 'FiltResim',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
@@ -40,40 +40,71 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('EverPixel'),
+        title: Text('FiltResim'),
+        centerTitle: true,
       ),
       body: Column(
         children: [
-          if (processor.originalImage != null)
-            Expanded(
-              child: Image.file(processor.originalImage!),
+          Expanded(
+            child: Center(
+              child: processor.originalImage != null
+                  ? Image.file(processor.originalImage!)
+                  : Icon(Icons.image_outlined, size: 100, color: Colors.grey),
             ),
-          if (processor.processedImage != null)
-            Expanded(
-              child: Image.file(processor.processedImage!),
-            ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton(
-                onPressed: () => _pickImage(processor),
-                child: Text('Select Image'),
-              ),
-              ElevatedButton(
-                onPressed: () => processor.applyFilter('grayscale'),
-                child: Text('Grayscale'),
-              ),
-              ElevatedButton(
-                onPressed: () => processor.applyFilter('blur'),
-                child: Text('Blur'),
-              ),
-              /* ElevatedButton(
-                onPressed: () => processor.sendToPythonAPI(),
-                child: Text('Send to Python API'),
-              ), */
-            ],
           ),
+          Expanded(
+            child: processor.processedImage != null
+                ? Image.file(processor.processedImage!)
+                : SizedBox(),
+          ),
+          SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
+              children: [
+                _buildFilterButton(
+                    Icons.add, 'Seç', () => _pickImage(processor)),
+                _buildFilterButton(Icons.grain, 'Gri',
+                    () => processor.applyFilter('grayscale')),
+                _buildFilterButton(Icons.blur_on, 'Bulanık',
+                    () => processor.applyFilter('blur')),
+                _buildFilterButton(Icons.filter_vintage, 'Sepia',
+                    () => processor.applyFilter('sepia')),
+                _buildFilterButton(Icons.invert_colors, 'Ters',
+                    () => processor.applyFilter('invert')),
+                _buildFilterButton(Icons.shutter_speed, 'Keskin',
+                    () => processor.applyFilter('edge')),
+                _buildFilterButton(Icons.tonality, 'Kontrast',
+                    () => processor.applyFilter('contrast')),
+                _buildFilterButton(Icons.wb_sunny, 'Parlak',
+                    () => processor.applyFilter('brightness')),
+                _buildFilterButton(
+                    Icons.flip, 'Ayna', () => processor.applyFilter('mirror')),
+                _buildFilterButton(Icons.cloud_upload, 'API',
+                    () => processor.sendToPythonAPI()),
+              ],
+            ),
+          ),
+          SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(
+      IconData icon, String label, VoidCallback onPressed) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 20, color: Colors.blueAccent),
+      label: Text(label,
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+      style: OutlinedButton.styleFrom(
+        padding: EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        side: BorderSide(color: Colors.blueAccent),
       ),
     );
   }
