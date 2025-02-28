@@ -7,8 +7,10 @@ plugins {
 
 android {
     namespace = "com.example.resimefekti"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+
+    // Flutter sürümüne bağlı olarak compileSdkVersion ve minSdkVersion gibi değerleri almak
+    compileSdkVersion 34  // Flutter'ın kullandığı compileSdkVersion
+    ndkVersion "21.4.7075529"  // Flutter'ın kullandığı NDK sürümü (eğer kullanıyorsanız)
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -20,21 +22,16 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.resimefekti"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdkVersion 21  // Flutter projenizin minimum SDK sürümü
+        targetSdkVersion 34  // Flutter projenizin hedef SDK sürümü
+        versionCode 1  // Uygulamanızın sürüm kodu
+        versionName "1.0.0"  // Uygulamanızın sürüm ismi
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            signingConfig = signingConfigs.debug  // Yayınlama için imzalama yapılandırması
         }
     }
 }
