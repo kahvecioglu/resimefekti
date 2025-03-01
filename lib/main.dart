@@ -16,6 +16,10 @@ class MyApp extends StatelessWidget {
       create: (context) => ImageProviderModel(),
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.teal,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
         home: HomeScreen(),
       ),
     );
@@ -26,22 +30,44 @@ class ImageProviderModel extends ChangeNotifier {
   Uint8List? selectedImage;
   Uint8List? processedImage;
   bool isLoading = false;
+  String errorMessage = '';
+  bool showProcessedImage = false;
 
-  // Seçilen resmi güncelle
   void updateSelectedImage(Uint8List? image) {
     selectedImage = image;
+    processedImage = null;
+    errorMessage = '';
+    showProcessedImage = false; // Orijinal resmi göster
     notifyListeners();
   }
 
-  // İşlenmiş resmi güncelle
   void updateProcessedImage(Uint8List? image) {
     processedImage = image;
+    showProcessedImage = true; // Filtreli resmi göster
     notifyListeners();
   }
 
-  // Yükleniyor durumunu ayarla
   void setLoading(bool loading) {
     isLoading = loading;
+    notifyListeners();
+  }
+
+  void setError(String message) {
+    errorMessage = message;
+    notifyListeners();
+  }
+
+  void clearError() {
+    errorMessage = '';
+    notifyListeners();
+  }
+
+  void reset() {
+    selectedImage = null;
+    processedImage = null;
+    showProcessedImage = false;
+    errorMessage = '';
+    isLoading = false;
     notifyListeners();
   }
 }
@@ -53,42 +79,41 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ImagePicker _picker = ImagePicker();
-  String _errorMessage = '';
+  bool _isShowingOriginal = false; // Orijinal resmi gösterme durumu
 
-  // Resim seçme işlemi
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       final imageProvider =
           Provider.of<ImageProviderModel>(context, listen: false);
-
-      // Resmi Uint8List'e dönüştür
       final bytes = await File(pickedFile.path).readAsBytes();
 
-      // Provider ile resmi güncelle
+      if (bytes.lengthInBytes > 1024 * 1024) {
+        imageProvider.setError('Lütfen 1 MB’den küçük bir resim seçin.');
+        return;
+      }
+
+      imageProvider.reset(); // Her şeyi sıfırla
       imageProvider.updateSelectedImage(bytes);
     }
   }
 
-  // Filtre uygulama işlemi
   Future<void> _applyFilter(String filterType) async {
     final imageProvider =
         Provider.of<ImageProviderModel>(context, listen: false);
     if (imageProvider.selectedImage == null) return;
 
-    // Yükleniyor durumunu başlat
     imageProvider.setLoading(true);
-    _errorMessage = '';
+    imageProvider.clearError();
 
-    // 5 saniye bekle simülasyonu
-    await Future.delayed(Duration(seconds: 12));
+    // 3 saniye bekle
+    await Future.delayed(Duration(seconds: 3));
 
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse('http://192.168.1.103:5000/process_image'), // API URL
+      Uri.parse('http://192.168.1.103:5000/process_image'),
     );
 
-    // Seçilen resmi API'ye gönder
     request.files.add(http.MultipartFile.fromBytes(
       'image',
       imageProvider.selectedImage!,
@@ -97,241 +122,203 @@ class _HomeScreenState extends State<HomeScreen> {
     request.fields['filter'] = filterType;
 
     try {
-      var response = await request.send();
-
+      var response = await request.send().timeout(Duration(seconds: 30));
       if (response.statusCode == 200) {
         final bytes = await response.stream.toBytes();
-
         if (bytes.isNotEmpty) {
-          // Filtrelenmiş resmi güncelle
           imageProvider.updateProcessedImage(bytes);
         } else {
-          _errorMessage = 'Gelen veri boş.';
+          imageProvider.setError('Gelen veri boş.');
         }
       } else {
-        _errorMessage = 'API hatası: ${response.statusCode}';
+        imageProvider.setError('API hatası: ${response.statusCode}');
       }
     } catch (e) {
-      _errorMessage = 'Bağlantı hatası Tekrar deneyin: $e';
+      imageProvider.setError('Bağlantı Sorunu: ${e.toString()}');
     } finally {
-      imageProvider.setLoading(false); // Yükleniyor durumunu sonlandır
+      imageProvider.setLoading(false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 7, 45, 77),
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 7, 45, 77),
+        elevation: 0,
+        backgroundColor: const Color.fromARGB(0, 173, 23, 23),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.teal, const Color.fromARGB(255, 4, 150, 155)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         title: Text(
           'Resim Filtreleme Uygulaması',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: Colors.white, fontSize: 25),
         ),
         centerTitle: true,
       ),
-      body: Consumer<ImageProviderModel>(
-        builder: (context, imageProvider, child) {
-          return Stack(
-            children: [
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Seçilen resmi göster
-                  imageProvider.selectedImage == null
-                      ? Text(
-                          'Lütfen bir resim seçin.',
-                          style: TextStyle(color: Colors.white),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.teal, Colors.blue], // Aynı renk gradyanı
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Consumer<ImageProviderModel>(
+          builder: (context, imageProvider, child) {
+            return Stack(
+              children: [
+                Center(
+                  child: imageProvider.selectedImage == null
+                      ? Icon(
+                          Icons.image,
+                          size: 150,
+                          color: Colors.white,
                         )
-                      : Image.memory(imageProvider.selectedImage!),
-                  SizedBox(height: 20),
-
-                  // Filtrelenmiş resmi göster
-                  imageProvider.processedImage == null
-                      ? Container()
-                      : Image.memory(imageProvider.processedImage!),
-                  SizedBox(height: 20),
-
-                  // Hata mesajı
-                  _errorMessage.isNotEmpty
-                      ? Text(_errorMessage, style: TextStyle(color: Colors.red))
+                      : Image.memory(
+                          _isShowingOriginal
+                              ? imageProvider.selectedImage!
+                              : imageProvider.processedImage ??
+                                  imageProvider.selectedImage!,
+                          fit: BoxFit.contain,
+                          height: MediaQuery.of(context).size.height,
+                          width: MediaQuery.of(context).size.width,
+                        ),
+                ),
+                Positioned(
+                  top: 40,
+                  left: 0,
+                  right: 0,
+                  child: imageProvider.errorMessage.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            imageProvider.errorMessage,
+                            style: TextStyle(color: Colors.red),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
                       : Container(),
-                ],
-              ),
-
-              // Yükleniyor göstergesi, resimlerin üstünde
-              if (imageProvider.isLoading)
-                Positioned.fill(
-                  child: Container(
-                    color: Colors.black.withOpacity(
-                        0.5), // Sayfanın geri kalanını karartmak için
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 5, // Geniş yükleme çubuğu
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+                if (imageProvider.isLoading)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.5),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 20,
+                  left: 0,
+                  right: 0,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton(
+                          onPressed:
+                              imageProvider.isLoading ? null : _pickImage,
+                          child: Icon(
+                            Icons.add,
+                            color: Colors.white,
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            shape: CircleBorder(),
+                            padding: EdgeInsets.all(20),
+                            backgroundColor: Colors.teal,
+                          ),
+                        ),
+                        SizedBox(width: 20),
+                        ..._filterButtons(imageProvider),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 80,
+                  right: 20,
+                  child: GestureDetector(
+                    onLongPress: () {
+                      setState(() {
+                        _isShowingOriginal = true;
+                      });
+                    },
+                    onLongPressUp: () {
+                      setState(() {
+                        _isShowingOriginal = false;
+                      });
+                    },
+                    child: FloatingActionButton(
+                      onPressed: () {},
+                      backgroundColor: Colors.teal,
+                      child: Icon(
+                        _isShowingOriginal
+                            ? Icons.circle
+                            : Icons.circle_outlined,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-              // Sabit butonlar, ekranın altında
-              Positioned(
-                bottom: 20,
-                left: 0,
-                right: 0,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Resim seçme butonu
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading ? null : _pickImage,
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color.fromARGB(255, 7, 71, 148)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('+'),
-                      ),
-                      SizedBox(width: 20),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('grayscale'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Grayscale'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('blur'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Blur'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('sepia'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Sepia'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('invert'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Invert'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('edge'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Edge'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('contrast'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Contrast'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('brightness'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Brightness'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('mirror'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Mirror'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('negative'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Negative'),
-                      ),
-                      SizedBox(width: 10),
-                      ElevatedButton(
-                        onPressed: imageProvider.isLoading
-                            ? null
-                            : () => _applyFilter('vignette'),
-                        style: ButtonStyle(
-                          backgroundColor: MaterialStateProperty.all(
-                              Color(0xFF00BFFF)), // Açık Mavi
-                          foregroundColor: MaterialStateProperty.all(
-                              Color(0xFFFFFFFF)), // Beyaz yazı
-                        ),
-                        child: Text('Vignette'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+  List<Widget> _filterButtons(ImageProviderModel imageProvider) {
+    List<Map<String, dynamic>> filterTypes = [
+      {'label': 'Grayscale', 'icon': Icons.photo_filter},
+      {'label': 'Blur', 'icon': Icons.blur_on},
+      {'label': 'Sepia', 'icon': Icons.color_lens},
+      {'label': 'Contrast', 'icon': Icons.tune},
+      {'label': 'Brightness', 'icon': Icons.brightness_6},
+      {'label': 'Mirror', 'icon': Icons.flip},
+      {'label': 'Negative', 'icon': Icons.photo_size_select_large},
+      {'label': 'Vignette', 'icon': Icons.vignette},
+      {'label': 'Posterize', 'icon': Icons.photo_filter},
+    ];
+
+    return filterTypes.map((filter) {
+      return _modernFilterButton(filter['label'], filter['icon']);
+    }).toList();
+  }
+
+  Widget _modernFilterButton(String text, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: ElevatedButton(
+        onPressed:
+            Provider.of<ImageProviderModel>(context, listen: false).isLoading ||
+                    _isShowingOriginal
+                ? null
+                : () => _applyFilter(text.toLowerCase()),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.teal,
+          padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white),
+            SizedBox(width: 8),
+            Text(
+              text,
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
+          ],
+        ),
       ),
     );
   }
