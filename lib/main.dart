@@ -1,9 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'api.dart'; // api.dart dosyasını içeri aktar
+import 'image_provider_model.dart'; // image_provider_model.dart dosyasını içeri aktar
 
 void main() {
   runApp(MyApp());
@@ -26,52 +27,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class ImageProviderModel extends ChangeNotifier {
-  Uint8List? selectedImage;
-  Uint8List? processedImage;
-  bool isLoading = false;
-  String errorMessage = '';
-  bool showProcessedImage = false;
-
-  void updateSelectedImage(Uint8List? image) {
-    selectedImage = image;
-    processedImage = null;
-    errorMessage = '';
-    showProcessedImage = false; // Orijinal resmi göster
-    notifyListeners();
-  }
-
-  void updateProcessedImage(Uint8List? image) {
-    processedImage = image;
-    showProcessedImage = true; // Filtreli resmi göster
-    notifyListeners();
-  }
-
-  void setLoading(bool loading) {
-    isLoading = loading;
-    notifyListeners();
-  }
-
-  void setError(String message) {
-    errorMessage = message;
-    notifyListeners();
-  }
-
-  void clearError() {
-    errorMessage = '';
-    notifyListeners();
-  }
-
-  void reset() {
-    selectedImage = null;
-    processedImage = null;
-    showProcessedImage = false;
-    errorMessage = '';
-    isLoading = false;
-    notifyListeners();
-  }
-}
-
 class HomeScreen extends StatefulWidget {
   @override
   _HomeScreenState createState() => _HomeScreenState();
@@ -80,6 +35,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isShowingOriginal = false; // Orijinal resmi gösterme durumu
+  final ApiService _apiService = ApiService(); // ApiService nesnesi
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -109,32 +65,15 @@ class _HomeScreenState extends State<HomeScreen> {
     // 3 saniye bekle
     await Future.delayed(Duration(seconds: 3));
 
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('http://192.168.1.103:5000/process_image'),
-    );
-
-    request.files.add(http.MultipartFile.fromBytes(
-      'image',
-      imageProvider.selectedImage!,
-      filename: 'image.jpg',
-    ));
-    request.fields['filter'] = filterType;
-
     try {
-      var response = await request.send().timeout(Duration(seconds: 30));
-      if (response.statusCode == 200) {
-        final bytes = await response.stream.toBytes();
-        if (bytes.isNotEmpty) {
-          imageProvider.updateProcessedImage(bytes);
-        } else {
-          imageProvider.setError('Gelen veri boş.');
-        }
-      } else {
-        imageProvider.setError('API hatası: ${response.statusCode}');
+      final processedImage = await _apiService.processImage(
+          imageProvider.selectedImage!, filterType);
+
+      if (processedImage != null) {
+        imageProvider.updateProcessedImage(processedImage);
       }
     } catch (e) {
-      imageProvider.setError('Bağlantı Sorunu: ${e.toString()}');
+      imageProvider.setError(e.toString());
     } finally {
       imageProvider.setLoading(false);
     }
