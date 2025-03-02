@@ -33,10 +33,16 @@ class ImageDownloadService {
 
     // Kullanıcıya geri bildirim veriyoruz
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Resim başarıyla indirildi!')),
+      SnackBar(
+        content: Text('Resim başarıyla indirildi!'),
+        duration: Duration(seconds: 1),
+      ),
     );
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Dosyanın konumu: " + file.path)),
+      SnackBar(
+        content: Text("Dosyanın konumu: " + file.path),
+        duration: Duration(seconds: 1),
+      ),
     );
 
     // Dosyanın kaydedildiği yeri logluyoruz
