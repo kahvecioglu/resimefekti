@@ -34,13 +34,34 @@ class ImageDownloadService {
     // Kullanıcıya geri bildirim veriyoruz
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Resim başarıyla indirildi!'),
+        content: Center(
+          child: Text(
+            'Resim başarıyla indirildi!',
+            textAlign: TextAlign.center, // Metni merkeze hizala
+            style: TextStyle(
+              color: Colors.white, // Yazı rengi
+              fontSize: 16, // Yazı boyutu
+            ),
+          ),
+        ),
+        backgroundColor: Colors.green, // SnackBar arka plan rengi
         duration: Duration(seconds: 1),
       ),
     );
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("Dosyanın konumu: " + file.path),
+        content: Center(
+          child: Text(
+            "Dosyanın konumu: " + file.path,
+            textAlign: TextAlign.center, // Metni merkeze hizala
+            style: TextStyle(
+              color: Colors.white, // Yazı rengi
+              fontSize: 14, // Yazı boyutu
+            ),
+          ),
+        ),
+        backgroundColor: Colors.green, // SnackBar arka plan rengi
         duration: Duration(seconds: 1),
       ),
     );
