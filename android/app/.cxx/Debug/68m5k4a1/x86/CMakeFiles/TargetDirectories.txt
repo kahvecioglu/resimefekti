@@ -1,0 +1,2 @@
+C:/Flutter/Flutter_Ders_1/resimefekti/android/app/.cxx/Debug/68m5k4a1/x86/CMakeFiles/edit_cache.dir
+C:/Flutter/Flutter_Ders_1/resimefekti/android/app/.cxx/Debug/68m5k4a1/x86/CMakeFiles/rebuild_cache.dir

@@ -1,5 +1,3 @@
-// image_provider_model.dart
-
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 

@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart'; // İzinler için
 import 'api.dart'; // api.dart dosyasını içeri aktar
 import 'image_provider_model.dart'; // image_provider_model.dart dosyasını içeri aktar
 
@@ -79,6 +81,41 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _downloadImage(Uint8List imageBytes) async {
+    // İzinleri kontrol et ve gerekli izinleri al
+    final permissionStatus = await Permission.storage.request();
+    if (!permissionStatus.isGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Depolama izni verilmedi!')),
+      );
+      return;
+    }
+
+    // Android cihazında dış depolama alanındaki Downloads klasörünü alıyoruz
+    final directory = await getExternalStorageDirectory();
+    if (directory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Klasör alınamadı!')),
+      );
+      return;
+    }
+
+    // Downloads klasörü içinde dosyayı kaydediyoruz
+    final file = File('${directory.path}/downloaded_image.png');
+
+    await file.writeAsBytes(imageBytes);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Resim başarıyla indirildi!')),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("konum :" + file.path)),
+    );
+
+    // Dosyanın kaydedildiği yeri yazdırma (geliştirici için)
+    print('Dosya kaydedildi: ${file.path}');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -151,6 +188,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     ),
                   ),
+                // İndirme butonunu üst kısma taşıdık
+                Positioned(
+                  top: 120, // Üstten 120 px aşağıda
+                  left: 0,
+                  right: 0,
+                  child: ElevatedButton(
+                    onPressed: imageProvider.isLoading ||
+                            imageProvider.selectedImage == null
+                        ? null
+                        : () => _downloadImage(imageProvider.selectedImage!),
+                    child: Icon(
+                      Icons.download,
+                      color: Colors.white,
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      shape: CircleBorder(),
+                      padding: EdgeInsets.all(20),
+                      backgroundColor: Colors.teal,
+                    ),
+                  ),
+                ),
                 Positioned(
                   bottom: 20,
                   left: 0,
