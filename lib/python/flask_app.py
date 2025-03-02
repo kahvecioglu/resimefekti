@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from image_processing import process_image  # OpenCV işleme fonksiyonunu import ettik
+from opencv import process_image  # OpenCV işleme fonksiyonunu import ettik
 
 app = Flask(__name__)
 CORS(app)
