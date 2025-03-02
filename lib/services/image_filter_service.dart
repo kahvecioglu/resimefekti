@@ -11,9 +11,6 @@ class ImageFilterService {
     imageProvider.setLoading(true);
     imageProvider.clearError();
 
-    // 3 saniye bekle
-    await Future.delayed(Duration(seconds: 3));
-
     try {
       final processedImage = await _apiService.processImage(
           imageProvider.selectedImage!, filterType);

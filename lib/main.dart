@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:resimefekti/services/image_download_service.dart';
-import 'services/api.dart'; // api.dart dosyasını içeri aktar
-import 'state/image_provider_model.dart'; // image_provider_model.dart dosyasını içeri aktar
+import 'services/api.dart';
+import 'state/image_provider_model.dart';
 import 'package:resimefekti/services/image_filter_service.dart';
 
 void main() {
@@ -36,9 +36,10 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ImagePicker _picker = ImagePicker();
-  bool _isShowingOriginal = false; // Orijinal resmi gösterme durumu
-  final ApiService _apiService = ApiService(); // ApiService nesnesi
+  bool _isShowingOriginal = false;
+  final ApiService _apiService = ApiService();
   final ImageFilterService _imageFilterService = ImageFilterService();
+  GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -52,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      imageProvider.reset(); // Her şeyi sıfırla
+      imageProvider.reset();
       imageProvider.updateSelectedImage(bytes);
     }
   }
@@ -68,9 +69,36 @@ class _HomeScreenState extends State<HomeScreen> {
     await imageDownloadService.downloadImage(imageBytes, context);
   }
 
+  void _showQuitDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Uygulamadan çıkmak istediğinizden emin misiniz?'),
+        content: Text('Tüm veriler kaybolabilir.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: Text('Vazgeç'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              // Uygulamadan çıkmak için exit() fonksiyonunu çağırıyoruz
+              exit(0);
+            },
+            child: Text('Çık'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: const Color.fromARGB(0, 173, 23, 23),
@@ -89,10 +117,48 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
       ),
+      drawer: Drawer(
+        backgroundColor: Colors.teal[300],
+        child: ListView(
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.teal, const Color.fromARGB(255, 4, 150, 155)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Text(
+                'Menu',
+                style: TextStyle(color: Colors.white, fontSize: 30),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.home, color: Colors.white),
+              title: Text(
+                'Home',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context); // Menüden çıkış
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.exit_to_app, color: Colors.white),
+              title: Text(
+                'Quit',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: _showQuitDialog, // Quit tıklandığında onay dialog'u göster
+            ),
+          ],
+        ),
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.teal, Colors.blue], // Aynı renk gradyanı
+            colors: [Colors.teal, Colors.blue],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -140,9 +206,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     ),
                   ),
-                // İndirme butonunu üst kısma taşıdık
                 Positioned(
-                  top: 120, // Üstten 120 px aşağıda
+                  top: 120,
                   left: 0,
                   right: 0,
                   child: ElevatedButton(
