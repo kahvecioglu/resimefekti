@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart'; // İzinler için
-import 'api.dart'; // api.dart dosyasını içeri aktar
-import 'image_provider_model.dart'; // image_provider_model.dart dosyasını içeri aktar
+import 'package:resimefekti/services/image_download_service.dart';
+import 'services/api.dart'; // api.dart dosyasını içeri aktar
+import 'state/image_provider_model.dart'; // image_provider_model.dart dosyasını içeri aktar
+import 'package:resimefekti/services/image_filter_service.dart';
 
 void main() {
   runApp(MyApp());
@@ -38,6 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ImagePicker _picker = ImagePicker();
   bool _isShowingOriginal = false; // Orijinal resmi gösterme durumu
   final ApiService _apiService = ApiService(); // ApiService nesnesi
+  final ImageFilterService _imageFilterService = ImageFilterService();
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -59,61 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _applyFilter(String filterType) async {
     final imageProvider =
         Provider.of<ImageProviderModel>(context, listen: false);
-    if (imageProvider.selectedImage == null) return;
-
-    imageProvider.setLoading(true);
-    imageProvider.clearError();
-
-    // 3 saniye bekle
-    await Future.delayed(Duration(seconds: 3));
-
-    try {
-      final processedImage = await _apiService.processImage(
-          imageProvider.selectedImage!, filterType);
-
-      if (processedImage != null) {
-        imageProvider.updateProcessedImage(processedImage);
-      }
-    } catch (e) {
-      imageProvider.setError(e.toString());
-    } finally {
-      imageProvider.setLoading(false);
-    }
+    await _imageFilterService.applyFilter(imageProvider, filterType);
   }
 
   Future<void> _downloadImage(Uint8List imageBytes) async {
-    // İzinleri kontrol et ve gerekli izinleri al
-    final permissionStatus = await Permission.storage.request();
-    if (!permissionStatus.isGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Depolama izni verilmedi!')),
-      );
-      return;
-    }
-
-    // Android cihazında dış depolama alanındaki Downloads klasörünü alıyoruz
-    final directory = await getExternalStorageDirectory();
-    if (directory == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Klasör alınamadı!')),
-      );
-      return;
-    }
-
-    // Downloads klasörü içinde dosyayı kaydediyoruz
-    final file = File('${directory.path}/downloaded_image.png');
-
-    await file.writeAsBytes(imageBytes);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Resim başarıyla indirildi!')),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("konum :" + file.path)),
-    );
-
-    // Dosyanın kaydedildiği yeri yazdırma (geliştirici için)
-    print('Dosya kaydedildi: ${file.path}');
+    final imageDownloadService = ImageDownloadService();
+    await imageDownloadService.downloadImage(imageBytes, context);
   }
 
   @override
@@ -240,6 +192,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Positioned(
                   bottom: 80,
                   right: 20,
+                  height: 25,
+                  width: 25,
                   child: GestureDetector(
                     onLongPress: () {
                       setState(() {

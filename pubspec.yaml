@@ -43,6 +43,7 @@ dependencies:
   ffi: ^2.0.0
   path_provider: ^2.1.5
   permission_handler: ^11.4.0
+  flutter_share: ^2.0.0
  
 
 dev_dependencies:
